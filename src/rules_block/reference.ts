@@ -1,4 +1,5 @@
 import { isSpace, normalizeReference } from '../common/utils.ts'
+import { MAX_LINK_LABEL_LENGTH } from '../common/constants.ts'
 import type StateBlock from './state_block.ts'
 
 export default function reference (state: StateBlock, startLine: number, _endLine: number, silent: boolean): boolean {
@@ -60,6 +61,8 @@ export default function reference (state: StateBlock, startLine: number, _endLin
 
   max = str.length
   let labelEnd = -1
+  // Count source characters, including escaped characters and newlines.
+  let labelLength = 0
 
   for (pos = 1; pos < max; pos++) {
     const ch = str.charCodeAt(pos)
@@ -69,6 +72,8 @@ export default function reference (state: StateBlock, startLine: number, _endLin
       labelEnd = pos
       break
     } else if (ch === 0x0A /* \n */) {
+      labelLength++
+      if (labelLength > MAX_LINK_LABEL_LENGTH) { return false }
       const lineContent = getNextLine(nextLine)
       if (lineContent !== null) {
         str += lineContent
@@ -76,7 +81,10 @@ export default function reference (state: StateBlock, startLine: number, _endLin
         nextLine++
       }
     } else if (ch === 0x5C /* \ */) {
+      labelLength++
       pos++
+      if (pos < max) { labelLength++ }
+      if (labelLength > MAX_LINK_LABEL_LENGTH) { return false }
       if (pos < max && str.charCodeAt(pos) === 0x0A) {
         const lineContent = getNextLine(nextLine)
         if (lineContent !== null) {
@@ -85,6 +93,9 @@ export default function reference (state: StateBlock, startLine: number, _endLin
           nextLine++
         }
       }
+    } else {
+      labelLength++
+      if (labelLength > MAX_LINK_LABEL_LENGTH) { return false }
     }
   }
 

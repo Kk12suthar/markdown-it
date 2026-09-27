@@ -1,7 +1,7 @@
 import type StateInline from '../rules_inline/state_inline.ts'
 
 /** Finds the end of a link or image label (`[label]`). */
-export default function parseLinkLabel (state: StateInline, start: number, disableNested?: boolean): number {
+export default function parseLinkLabel (state: StateInline, start: number, disableNested?: boolean, maxLength = 0): number {
   let level, found, marker, prevPos
 
   const max = state.posMax
@@ -11,6 +11,11 @@ export default function parseLinkLabel (state: StateInline, start: number, disab
   level = 1
 
   while (state.pos < max) {
+    if (maxLength && state.pos - start > maxLength + 1) {
+      state.pos = oldPos
+      return -1
+    }
+
     marker = state.src.charCodeAt(state.pos)
     if (marker === 0x5D /* ] */) {
       level--
@@ -22,6 +27,11 @@ export default function parseLinkLabel (state: StateInline, start: number, disab
 
     prevPos = state.pos
     state.md.inline.skipToken(state)
+    if (maxLength && state.pos - start > maxLength + 1) {
+      state.pos = oldPos
+      return -1
+    }
+
     if (marker === 0x5B /* [ */) {
       if (prevPos === state.pos - 1) {
         // increase level if we find text `[`, which is not a part of any token

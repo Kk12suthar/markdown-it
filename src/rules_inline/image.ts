@@ -1,6 +1,7 @@
 // Process ![image](<src> "title")
 
 import { normalizeReference, isSpace } from '../common/utils.ts'
+import { MAX_LINK_LABEL_LENGTH } from '../common/constants.ts'
 import type Token from '../token.ts'
 import type StateInline from './state_inline.ts'
 
@@ -85,10 +86,11 @@ export default function image (state: StateInline, silent: boolean): boolean {
 
     if (pos < max && state.src.charCodeAt(pos) === 0x5B/* [ */) {
       start = pos + 1
-      pos = state.md.helpers.parseLinkLabel(state, pos)
+      pos = state.md.helpers.parseLinkLabel(state, pos, false, MAX_LINK_LABEL_LENGTH)
       if (pos >= 0) {
         label = state.src.slice(start, pos++)
       } else {
+        // An invalid second label can still be followed by a shortcut link.
         pos = labelEnd + 1
       }
     } else {
@@ -97,7 +99,13 @@ export default function image (state: StateInline, silent: boolean): boolean {
 
     // covers label === '' and label === undefined
     // (collapsed reference link and shortcut reference link respectively)
-    if (!label) { label = state.src.slice(labelStart, labelEnd) }
+    if (!label) {
+      if (labelEnd - labelStart > MAX_LINK_LABEL_LENGTH) {
+        state.pos = oldPos
+        return false
+      }
+      label = state.src.slice(labelStart, labelEnd)
+    }
 
     label = normalizeReference(label)
     ref = state.env.references[label]
